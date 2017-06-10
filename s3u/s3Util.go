@@ -3,15 +3,14 @@ package s3u
 import (
 	"context"
 	"fmt"
-	"os"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"os"
+	"time"
 )
 
 var (
@@ -20,12 +19,12 @@ var (
 
 type S3Util struct {
 	region          string
-	accessKey              string
-	secretAccessKey        string
-	svc *s3.S3
+	accessKey       string
+	secretAccessKey string
+	svc             *s3.S3
 }
 
-func NewS3Util(region string,accessKey string,secretAccessKey string) *S3Util {
+func NewS3Util(region string, accessKey string, secretAccessKey string) *S3Util {
 	// All clients require a Session. The Session provides the client with
 	// shared configuration such as region, endpoint, and credentials. A
 	// Session should be shared where possible to take advantage of
@@ -55,12 +54,10 @@ func NewS3Util(region string,accessKey string,secretAccessKey string) *S3Util {
 	// Ensure the context is canceled to prevent leaking.
 	// See context package for more information, https://golang.org/pkg/context/
 	defer cancelFn()
-	return &S3Util{region:region,accessKey:accessKey,secretAccessKey:secretAccessKey,svc:svc}
+	return &S3Util{region: region, accessKey: accessKey, secretAccessKey: secretAccessKey, svc: svc}
 }
 
-
-
-func (s3u *S3Util) Presign(key string,bucket string) string {
+func (s3u *S3Util) Presign(key string, bucket string) string {
 	sdkReq, _ := s3u.svc.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -75,7 +72,7 @@ func (s3u *S3Util) Presign(key string,bucket string) string {
 	return u
 }
 
-func  (s3u *S3Util) list(svc *s3.S3,bucket string) {
+func (s3u *S3Util) List(bucket string) {
 	listObjectsInput := new(s3.ListObjectsInput)
 	listObjectsInput = listObjectsInput.SetBucket(bucket)
 	otList, err := s3u.svc.ListObjects(listObjectsInput)
@@ -113,7 +110,7 @@ func  (s3u *S3Util) list(svc *s3.S3,bucket string) {
 }
 
 //上传文件
-func  (s3u *S3Util) uploadFile(file string,bucket string, ctx context.Context) {
+func (s3u *S3Util) uploadFile(file string, bucket string, ctx context.Context) {
 	f, _ := os.Open("D:/github/golang/src/AwsSdk/main.go")
 	defer f.Close()
 	_, err := s3u.svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
