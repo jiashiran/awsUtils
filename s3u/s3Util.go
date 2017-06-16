@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	timeout time.Duration = 10 * time.Second
+	timeout time.Duration = 100 * time.Second
 )
 
 type S3Util struct {
@@ -46,25 +46,18 @@ func NewS3Util(region string, accessKey string, secretAccessKey string) *S3Util 
 	svc := s3.New(sess, config)
 	// Create a context with a timeout that will abort the upload if it takes
 	// more than the passed in timeout.
-	ctx := context.Background()
-	var cancelFn func()
-	if timeout > 0 {
-		ctx, cancelFn = context.WithTimeout(ctx, timeout)
-	}
-	// Ensure the context is canceled to prevent leaking.
-	// See context package for more information, https://golang.org/pkg/context/
-	defer cancelFn()
+
 	return &S3Util{region: region, accessKey: accessKey, secretAccessKey: secretAccessKey, svc: svc}
 }
 
-func (s3u *S3Util) Presign(key string, bucket string) string {
+func (s3u *S3Util) Presign(key string, bucket string,minute time.Duration) string {
 	sdkReq, _ := s3u.svc.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
 	var u string
 	var err1 error
-	u, err1 = sdkReq.Presign(1 * time.Minute)
+	u, err1 = sdkReq.Presign(minute * time.Minute)
 	if err1 != nil {
 		fmt.Println(err1)
 	}
@@ -72,9 +65,10 @@ func (s3u *S3Util) Presign(key string, bucket string) string {
 	return u
 }
 
-func (s3u *S3Util) List(bucket string) {
+func (s3u *S3Util) List(bucket,prefix string) {
 	listObjectsInput := new(s3.ListObjectsInput)
 	listObjectsInput = listObjectsInput.SetBucket(bucket)
+	listObjectsInput = listObjectsInput.SetPrefix(prefix)
 	otList, err := s3u.svc.ListObjects(listObjectsInput)
 	if err != nil {
 		fmt.Println(err)
@@ -86,7 +80,7 @@ func (s3u *S3Util) List(bucket string) {
 		/*if i > 0 {
 			break
 		}*/
-		fmt.Println(aws.StringValue(o.Key))
+		fmt.Println(o)
 		/*key := aws.StringValue(o.Key)
 		sdkReq, _ := svc.GetObjectRequest(&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
@@ -109,13 +103,37 @@ func (s3u *S3Util) List(bucket string) {
 
 }
 
+func (s3u *S3Util) Delete(key string, bucket string)  {
+	_,err := s3u.svc.DeleteObject(&s3.DeleteObjectInput{
+		Bucket	:aws.String(bucket),
+		Key	:aws.String(key),
+	})
+	if err != nil{
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == request.CanceledErrorCode {
+			fmt.Fprintf(os.Stderr, "Delete canceled due to timeout, %v\n", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "failed to Delete object, %v\n", err)
+		}
+		os.Exit(1)
+	}
+	fmt.Println("successfully delete Key to ", key)
+}
+
 //上传文件
-func (s3u *S3Util) uploadFile(file string, bucket string, ctx context.Context) {
-	f, _ := os.Open("D:/github/golang/src/AwsSdk/main.go")
+func (s3u *S3Util) Upload(file string,key string, bucket string) {
+	f, _ := os.Open(file)
 	defer f.Close()
+	ctx := context.Background()
+	var cancelFn func()
+	if timeout > 0 {
+		ctx, cancelFn = context.WithTimeout(ctx, timeout)
+	}
+	// Ensure the context is canceled to prevent leaking.
+	// See context package for more information, https://golang.org/pkg/context/
+	defer cancelFn()
 	_, err := s3u.svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
-		Key:    aws.String("main.go"),
+		Key:    aws.String(key),
 		Body:   S3Body{f},
 	})
 	if err != nil {
