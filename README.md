@@ -1,2 +1,0 @@
-# awsUtils
-some aws tools
