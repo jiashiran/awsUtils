@@ -22,7 +22,7 @@ func Run() {
 
 	//getDetailHTML() // 净资产收益率,如果有值写入 000.csv 按数字顺序遍历
 
-	//getFFC()  //获取自由现金流 写入 stock-FFC.csv
+	//getFFC() //获取自由现金流 写入 stock-FFC.csv
 
 	//https://xueqiu.com/S/SH688677
 
@@ -34,7 +34,7 @@ func Run() {
 	//fmt.Println(v)
 	//caculateDCF()
 
-	t("SZ000403")
+	//t("SZ000403")
 }
 
 func caculateDCF() {
@@ -244,12 +244,15 @@ func getDHTML() {
 //雪球主页，获取首页的数据
 func reCheckByCSR(name string, res string, ctx context.Context) {
 	codeMap := make(map[string]int8)
+	var index int64 = 0
 	pkg.ReadLine("resource/stock-detail.csv", func(s string) {
 		if s == "" {
 			return
 		}
 		ss := strings.Split(s, `,`)
 		codeMap[ss[0]] = 1
+		//fmt.Println(ss[0][2:])
+		index, _ = strconv.ParseInt(ss[0][2:], 10, 64)
 	})
 	pkg.ReadLine(name, func(s string) {
 		defer func() {
@@ -261,6 +264,10 @@ func reCheckByCSR(name string, res string, ctx context.Context) {
 		code := ss[0]
 		_, ok := codeMap[code]
 		if ok || strings.Contains(ss[1], `-`) { //自由现金流是负或没有跳过
+			return
+		}
+		i, err := strconv.ParseInt(ss[0][2:], 10, 64)
+		if err == nil && i < index { //小于最大值
 			return
 		}
 		/*ffc := 0.0
@@ -282,7 +289,9 @@ func reCheckByCSR(name string, res string, ctx context.Context) {
 		stock = getDetail(res, shtml, stock)
 
 		stringV := caculateV(stock.Ttm, stock.Sum, stock.Price, stock.FFC)
-
+		if strings.Contains(stock.Info, "银行") || strings.Contains(stock.Service, "房地产") {
+			return
+		}
 		//代码,总市值,市值,静态市盈率,动态市盈率,总股本,当前价格,自由现金流,每股自由现金流,估值,现金流计算市盈率,计算市盈率比值,名称,简介,服务
 		value := fmt.Sprint(stock.code) + "," + fmt.Sprint(stock.Zsz) + "," + fmt.Sprint(stock.SZ) + "," +
 			//fmt.Sprint(stock.Ltz)+","+fmt.Sprint(stock.Jzcsyl)+","+
@@ -612,6 +621,7 @@ func search000(res, url string, ctx context.Context) {
 	}
 }
 
+//计算自由现金流
 func caculateV(TTM, Sum, Price float64, _Flow string) string {
 	//TTM,_ := strconv.ParseFloat(_TTM,64)
 	//Sum,_ := strconv.ParseFloat(_SUM,64)
